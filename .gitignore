@@ -1,0 +1,28 @@
+# Custom
+.vscode/
+*.code-workspace
+backup.*
+backup/
+dist/
+idea.*
+idea/
+notes.*
+notes/
+workbooks/
+
+# Mac system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# VS Code
+.vscode/
+
+# Node (remove if not a Node project)
+node_modules/
+npm-debug.log
+
+# Python (remove if not a Python project)
+__pycache__/
+*.pyc
+.env
