@@ -1,0 +1,1211 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Leg by Leg</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: a sticky departure-board strip carries the answer; below it, plan (itinerary, anchor, add, list) on the left and the live timeline on the right, stacking on phones. */
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --ink: #17202a;
+  --muted: #5a6572;
+  --line: #d5dbe2;
+  --field: #f7f9fb;
+  --board: #1b2430;
+  --board-ink: #f2f4f7;
+  --board-dim: #9aa6b4;
+  --amber: #ffc53d;
+  --transit: #1f5f9e;
+  --transit-bg: #e2ecf7;
+  --activity: #2b7349;
+  --activity-bg: #e1f1e7;
+  --buffer: #5f449a;
+  --buffer-bg: #ece6f6;
+  --fixed: #7a5100;
+  --fixed-bg: #f8ecd2;
+  --error: #b42318;
+  --error-bg: #fbe4e1;
+  --warn-pill: #ff9b8f;
+  --focus: #d98a00;
+  --f-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --surface: #19212a; --ink: #e5eaef; --muted: #96a2af; --line: #2b3540; --field: #141b22;
+    --board: #0a0e13; --board-ink: #eef1f5; --board-dim: #8996a5; --amber: #ffc53d;
+    --transit: #8ab8ea; --transit-bg: #1c2d40; --activity: #7fcca0; --activity-bg: #1a3326;
+    --buffer: #bba5e8; --buffer-bg: #2a2340; --fixed: #f0c46a; --fixed-bg: #3a2d12;
+    --error: #ff8a80; --error-bg: #3d1a17; --warn-pill: #ff9b8f; --focus: #ffc53d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --surface: #19212a; --ink: #e5eaef; --muted: #96a2af; --line: #2b3540; --field: #141b22;
+  --board: #0a0e13; --board-ink: #eef1f5; --board-dim: #8996a5; --amber: #ffc53d;
+  --transit: #8ab8ea; --transit-bg: #1c2d40; --activity: #7fcca0; --activity-bg: #1a3326;
+  --buffer: #bba5e8; --buffer-bg: #2a2340; --fixed: #f0c46a; --fixed-bg: #3a2d12;
+  --error: #ff8a80; --error-bg: #3d1a17; --warn-pill: #ff9b8f; --focus: #ffc53d; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ic { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* Board strip */
+.board {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  background: var(--board); color: var(--board-ink);
+  padding-block: 10px; padding-inline: 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.18);
+}
+.board-inner { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; gap: 8px 20px; flex-wrap: wrap; }
+.board-label { font-weight: 600; font-size: 17px; color: var(--board-dim); }
+.board-time { font-weight: 700; font-size: 40px; line-height: 1; color: var(--amber); }
+.board-main { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.board-off { font-size: 13px; font-weight: 700; color: var(--board); background: var(--amber); padding: 1px 6px; border-radius: 3px; }
+.board-warn { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--board); background: var(--warn-pill); padding: 1px 8px; border-radius: 3px; }
+.board-date { font-size: 14px; color: var(--board-ink); }
+.board-meta { margin-left: auto; display: flex; gap: 16px; font-size: 14px; color: var(--board-dim); align-items: baseline; min-width: 0; }
+.board-meta b { color: var(--board-ink); font-weight: 700; }
+.board-trip { color: var(--board-ink); font-weight: 600; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 20px 72px; padding-inline: 16px; }
+.cols { display: grid; gap: 20px; grid-template-columns: 1fr; }
+@media (min-width: 880px) {
+  .cols { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; }
+  .side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 80px); max-height: calc(100vh - 100px); overflow: auto; }
+}
+.main, .side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+h2 { font-weight: 700; font-size: 18px; margin: 0 0 12px; color: var(--ink); }
+h3 { font-weight: 600; font-size: 14px; margin: 16px 0 6px; color: var(--muted); }
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.panel-head h2 { margin: 0; }
+
+label.f, .f { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
+input[type=text], input[type=number], input[type=date], select, textarea {
+  background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; min-height: 40px; width: 100%; min-width: 0; color: var(--ink);
+}
+textarea { resize: vertical; line-height: 1.4; }
+input.err { border-color: var(--error); }
+.msg { color: var(--error); font-size: 14px; }
+.msg.ok { color: var(--activity); }
+.msg:empty { display: none; }
+.note { font-size: 14px; color: var(--muted); margin: 0 0 10px; }
+.hint { font-size: 13px; color: var(--muted); }
+
+/* Itinerary switcher */
+.saved { font-size: 13px; color: var(--muted); }
+.saved.bad { color: var(--error); }
+.trip-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.trip-row > select, .trip-row > input { flex: 1 1 200px; font-weight: 600; font-size: 16px; }
+.trip-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.io { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.io summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+.io[open] summary { margin-bottom: 10px; }
+.io-body { display: flex; flex-direction: column; gap: 10px; }
+#ioText { font-size: 13px; }
+
+/* Segmented toggle */
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--field); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { text-align: center; padding: 9px 8px; cursor: pointer; font-weight: 700; color: var(--muted); }
+.seg input:checked + label { background: var(--board); color: var(--amber); }
+.seg input:focus-visible + label { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+.anchor-grid { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin-top: 12px; }
+.anchor-grid .time-in { font-size: 18px; font-weight: 700; }
+
+/* Leg forms (add + edit) */
+.leg-form { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.meta-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.meta-row > * { flex: 1 1 150px; }
+.dur { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.unit { position: relative; display: block; }
+.unit input { padding-right: 34px; min-width: 64px; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* Structured route editor */
+.route-box { border: 1px solid var(--line); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.route-box .title { font-size: 13px; color: var(--transit); font-weight: 600; display: flex; align-items: center; gap: 5px; }
+.rsteps { display: flex; flex-direction: column; gap: 8px; }
+.rsteps:empty { display: none; }
+.rs { border-left: 4px solid var(--transit); background: var(--field); border-radius: 0; padding: 6px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+.rs.xfer { border-left: 3px dotted var(--transit); }
+.rs-head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 14px; color: var(--ink); }
+.rs-head span { display: inline-flex; gap: 5px; align-items: center; }
+.rs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.rs input, .rs select { background: var(--surface); }
+.route-hint { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.route-hint:empty { display: none; }
+/* Route as drawn in the timeline */
+ol.route { list-style: none; margin: 8px 0 2px; padding: 0; }
+.rt-st { position: relative; padding: 1px 0 1px 22px; font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.rt-st::before { content: ""; position: absolute; left: 0; top: .2em; width: 13px; height: 13px; box-sizing: border-box; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--surface); }
+.rt-ride { margin-left: 4px; border-left: 5px solid var(--line, var(--transit)); padding: 5px 0 7px 13px; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.rt-meta { color: var(--muted); font-size: 13px; }
+.rt-xfer { margin-left: 5px; border-left: 3px dotted var(--transit); padding: 5px 0 7px 14px; font-size: 13px; color: var(--muted); }
+.rt-xfer .bv { color: var(--buffer); font-weight: 600; }
+.line-badge { display: inline-block; color: #fff; padding: 0 6px; border-radius: 3px; font-weight: 600; margin-right: 2px; }
+.line-badge.plain { background: var(--transit-bg); color: var(--transit); }
+.meta-row > .dur-group { flex: 1 1 170px; }
+.unit span { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--muted); pointer-events: none; }
+.bufs-box { border: 1px dashed var(--line); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.bufs-box .title { font-size: 13px; color: var(--buffer); font-weight: 600; display: flex; align-items: center; gap: 5px; }
+.bufs { display: flex; flex-direction: column; gap: 6px; }
+.bufs:empty { display: none; }
+.buf-row { display: grid; grid-template-columns: minmax(0,1fr) 70px 82px 34px; gap: 6px; align-items: center; }
+.fx { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.chk { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); font-weight: 600; cursor: pointer; }
+.chk input { width: 18px; height: 18px; accent-color: var(--fixed); margin: 0; }
+.fx .fx-time { width: 96px; flex: none; font-weight: 700; }
+.fx .hint { flex: 1 1 100%; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 8px 14px; min-height: 40px; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--board); color: var(--amber); border-color: var(--board); }
+.btn.small { min-height: 34px; padding: 4px 12px; font-size: 14px; }
+.btn.link { border: 0; background: none; color: var(--muted); padding: 4px 6px; min-height: 0; font-weight: 400; text-decoration: underline; }
+.btn.add-buf { align-self: flex-start; color: var(--buffer); }
+.bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* Tags */
+.tag { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; padding: 1px 8px; border-radius: 3px; line-height: 1.5; }
+.tag .ic { width: 14px; height: 14px; }
+.tag.Transit { color: var(--transit); background: var(--transit-bg); }
+.tag.Activity { color: var(--activity); background: var(--activity-bg); }
+.tag.buf { color: var(--buffer); background: var(--buffer-bg); }
+.tag.fixed { color: var(--fixed); background: var(--fixed-bg); }
+.tag.late { color: var(--error); background: var(--error-bg); }
+
+/* Item list */
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: 26px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row.Transit .idx { border-left-color: var(--transit); }
+.row.Activity .idx { border-left-color: var(--activity); }
+.idx { font-size: 14px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 5px; }
+.nm { font-weight: 600; font-size: 16px; line-height: 1.3; overflow-wrap: anywhere; }
+.sub { display: flex; gap: 6px 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; font-size: 14px; color: var(--muted); }
+.sum { font-size: 14px; color: var(--muted); margin-top: 3px; }
+.sum b { color: var(--ink); font-weight: 700; }
+.sum .bv { color: var(--buffer); }
+.steps-btn { display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; color: var(--muted); padding: 2px 4px; border-radius: 4px; cursor: pointer; font-size: 14px; text-decoration: underline dotted; text-underline-offset: 3px; }
+.steps-btn:hover { color: var(--ink); }
+.steps-btn .ic { transition: transform .15s; }
+.steps-btn[aria-expanded="true"] .ic { transform: rotate(180deg); }
+.acts { display: flex; gap: 2px; }
+.ib { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid transparent; background: none; border-radius: 6px; cursor: pointer; color: var(--muted); }
+.ib:hover:not(:disabled) { border-color: var(--line); color: var(--ink); background: var(--field); }
+.ib:disabled { opacity: .3; cursor: default; }
+.ib .ic { width: 18px; height: 18px; }
+.ib.del:hover:not(:disabled) { color: var(--error); }
+.row.flash { animation: flash .6s ease-out; }
+@keyframes flash { from { background: var(--transit-bg); } to { background: transparent; } }
+.row .leg-form { grid-column: 2 / -1; }
+.empty { color: var(--muted); padding: 12px 0; }
+
+/* Route steps, buffer details */
+ol.steps { list-style: none; margin: 6px 0 2px 4px; padding: 0 0 0 14px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 3px; }
+ol.steps li { position: relative; font-size: 14px; color: var(--ink); line-height: 1.35; overflow-wrap: anywhere; }
+ol.steps li::before { content: ""; position: absolute; left: -21px; top: .4em; width: 8px; height: 8px; border-radius: 50%; background: var(--surface); border: 2px solid var(--transit); }
+ol.steps.Activity li::before { border-color: var(--activity); }
+.bl { font-size: 13px; color: var(--muted); margin-top: 4px; padding-left: 10px; border-left: 2px solid var(--buffer); line-height: 1.4; overflow-wrap: anywhere; }
+.late-note { font-size: 13px; color: var(--error); margin-top: 4px; padding-left: 10px; border-left: 2px solid var(--error); line-height: 1.4; }
+
+/* Totals */
+.totals { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px 12px; }
+.tot { border-top: 3px solid var(--line); padding-top: 6px; min-width: 0; }
+.tot.Transit { border-top-color: var(--transit); }
+.tot.Activity { border-top-color: var(--activity); }
+.tot.buf { border-top-color: var(--buffer); }
+.tot .k { font-size: 14px; color: var(--muted); }
+.tot .v { font-weight: 700; font-size: 24px; line-height: 1.15; }
+.tot .d { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.bymode { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.bymode li { display: flex; align-items: center; gap: 8px; color: var(--transit); }
+.bymode li span { color: var(--ink); flex: 1; }
+.bymode li b { color: var(--ink); }
+
+/* Timeline */
+.tl { list-style: none; margin: 0; padding: 0; }
+.tl > li { display: grid; grid-template-columns: 70px minmax(0,1fr); gap: 14px; padding: 9px 0; border-top: 1px dashed var(--line); }
+.tl > li:first-child { border-top: 0; }
+.tl .times { font-size: 16px; font-weight: 700; line-height: 1.5; }
+.tl .times .ic { width: 13px; height: 13px; color: var(--fixed); vertical-align: -1px; }
+.tl .times .e { color: var(--muted); font-weight: 400; }
+.tl .off { display: inline-block; font-size: 12px; font-weight: 700; padding: 0 4px; border-radius: 3px; background: var(--ink); color: var(--surface); line-height: 1.4; }
+.tl .what { min-width: 0; }
+.tl .end-mark { font-weight: 600; font-size: 16px; color: var(--muted); line-height: 1.5; }
+.tl .end-mark.hi { color: var(--ink); }
+.tl > li.is-late .times > :first-child { color: var(--error); }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--board); color: var(--board-ink); border-radius: 8px; padding: 8px 8px 8px 14px; display: flex; gap: 12px; align-items: center; z-index: 20; max-width: calc(100% - 32px); box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+.toast button { background: none; border: 1px solid var(--board-dim); color: var(--amber); border-radius: 5px; padding: 4px 10px; cursor: pointer; font-weight: 700; }
+
+@media (max-width: 520px) {
+  .board-time { font-size: 34px; }
+  .board-meta { margin-left: 0; width: 100%; gap: 12px; }
+  .board-trip { max-width: 14ch; }
+  .tl > li { grid-template-columns: 62px minmax(0,1fr); gap: 10px; }
+  .tot .v { font-size: 21px; }
+  .buf-row { grid-template-columns: minmax(0,1fr) 62px 74px 34px; gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .row.flash { animation: none; } .steps-btn .ic { transition: none; } }
+</style>
+
+<header class="board" aria-live="polite">
+  <div class="board-inner">
+    <div class="board-main">
+      <span class="board-label" id="bLabel">Arrive at</span>
+      <span class="board-time" id="bTime">--:--</span>
+      <span class="board-off" id="bOff" hidden></span>
+      <span class="board-warn" id="bWarn" hidden></span>
+      <span class="board-date" id="bDate"></span>
+    </div>
+    <div class="board-meta">
+      <span class="board-trip" id="bTrip"></span>
+      <span>Total <b id="bTotal">0 min</b></span>
+      <span><b id="bCount">0</b> legs</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="cols">
+    <div class="main">
+      <section class="panel" aria-labelledby="hTrip">
+        <div class="panel-head">
+          <h2 id="hTrip">Itinerary</h2>
+          <span class="saved" id="savedNote">Saved in this browser</span>
+        </div>
+        <div class="trip-row" id="tripView">
+          <select id="tripSel" aria-label="Choose itinerary"></select>
+          <div class="trip-btns">
+            <button class="btn small" type="button" id="tripNew">New</button>
+            <button class="btn small" type="button" id="tripDup">Duplicate</button>
+            <button class="btn small" type="button" id="tripRen">Rename</button>
+            <button class="btn small" type="button" id="tripDel">Delete</button>
+          </div>
+        </div>
+        <form class="trip-row" id="tripRename" hidden novalidate>
+          <input type="text" id="tripName" aria-label="Itinerary name" maxlength="80" autocomplete="off">
+          <div class="trip-btns">
+            <button class="btn small primary" type="submit">Save name</button>
+            <button class="btn small" type="button" id="tripRenCancel">Cancel</button>
+          </div>
+        </form>
+        <div class="msg" id="tripMsg" role="alert"></div>
+        <details class="io" id="ioBox">
+          <summary>Back up or move itineraries</summary>
+          <div class="io-body">
+            <p class="note" style="margin:0">Browser storage is wiped if you clear site data or use a private window. Copy a backup and keep it somewhere safe, like a note or an email to yourself. Paste it here to restore it.</p>
+            <div class="trip-btns">
+              <button class="btn small" type="button" id="copyOne">Copy this itinerary</button>
+              <button class="btn small" type="button" id="copyAll">Copy all itineraries</button>
+              <button class="btn small primary" type="button" id="importBtn">Import pasted text</button>
+            </div>
+            <label class="f" for="ioText">Backup text
+              <textarea id="ioText" rows="4" spellcheck="false" placeholder="Paste backup text here, then choose Import pasted text."></textarea>
+            </label>
+            <div class="msg" id="ioMsg" role="status"></div>
+          </div>
+        </details>
+      </section>
+
+      <section class="panel" aria-labelledby="hAnchor">
+        <h2 id="hAnchor">Anchor</h2>
+        <div class="seg" role="radiogroup" aria-label="Anchor mode">
+          <input type="radio" name="mode" id="modeDepart" value="depart"><label for="modeDepart">Depart by</label>
+          <input type="radio" name="mode" id="modeArrive" value="arrive"><label for="modeArrive">Arrive by</label>
+        </div>
+        <div class="anchor-grid">
+          <label class="f" for="aTime"><span id="aTimeLabel">Departure time (24 h)</span>
+            <input type="text" id="aTime" class="time-in" inputmode="numeric" placeholder="HH:MM" maxlength="5" autocomplete="off">
+          </label>
+          <label class="f" for="aDate">Date (optional)
+            <input type="date" id="aDate">
+          </label>
+        </div>
+        <div class="msg" id="aMsg" role="alert"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="hAdd">
+        <h2 id="hAdd">Add a leg</h2>
+        <form id="addForm" class="leg-form" novalidate></form>
+      </section>
+
+      <section class="panel" aria-labelledby="hList">
+        <div class="panel-head">
+          <h2 id="hList">Legs in order</h2>
+          <button class="btn link" id="clearBtn" type="button">Clear all</button>
+        </div>
+        <p class="note" id="listNote" hidden></p>
+        <ol class="list" id="list"></ol>
+      </section>
+    </div>
+
+    <aside class="side">
+      <section class="panel" aria-labelledby="hTot">
+        <h2 id="hTot">Totals</h2>
+        <div class="totals">
+          <div class="tot"><div class="k">Whole trip</div><div class="v" id="tAll">0 min</div></div>
+          <div class="tot buf"><div class="k">Buffers and waits</div><div class="v" id="tBuf">0 min</div><div class="d" id="tBufD"></div></div>
+          <div class="tot Transit"><div class="k">Transit leg time</div><div class="v" id="tTransit">0 min</div></div>
+          <div class="tot Activity"><div class="k">Activity leg time</div><div class="v" id="tActivity">0 min</div></div>
+        </div>
+        <div id="byModeWrap" hidden>
+          <h3>Transit leg time by mode</h3>
+          <ul class="bymode" id="byMode"></ul>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="hTl">
+        <h2 id="hTl">Timeline</h2>
+        <ol class="tl" id="timeline"></ol>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden><span id="toastMsg"></span><button type="button" id="undoBtn">Undo</button></div>
+
+<script>
+(function () {
+  const KEY1 = "leg-by-leg-v1", KEY = "leg-by-leg-v2";
+  const $ = (id) => document.getElementById(id);
+  const uid = () => Math.random().toString(36).slice(2, 10);
+  const CATS = ["Transit", "Activity"];
+  const MODES = [["walk", "Walk"], ["subway", "Subway / Metro"], ["train", "Train"], ["hsr", "High-speed rail"], ["bus", "Bus"], ["car", "Taxi / Car"], ["flight", "Flight"], ["ferry", "Ferry"], ["other", "Other"]];
+  const MODE_LABEL = Object.fromEntries(MODES);
+  const MODE_TAG = { walk: "Walk", subway: "Subway", train: "Train", hsr: "High-speed rail", bus: "Bus", car: "Taxi / Car", flight: "Flight", ferry: "Ferry", other: "Transit" };
+  const RAIL = new Set(["subway", "train", "hsr", "bus"]);   // modes that get the structured route
+  const LINE_COLORS = [["", "No color"], ["gray", "Gray", "#6b7280"], ["brown", "Brown", "#8a5a2b"], ["red", "Red", "#c9302c"], ["orange", "Orange", "#c2620f"], ["gold", "Gold", "#9a7400"], ["green", "Green", "#2e8540"], ["teal", "Teal", "#0f7c86"], ["sky", "Sky blue", "#1f78c8"], ["blue", "Blue", "#2a4fb5"], ["purple", "Purple", "#7a3fb0"], ["pink", "Pink", "#c23a7a"]];
+  const LINE_HEX = Object.fromEntries(LINE_COLORS.filter((c) => c[2]).map((c) => [c[0], c[2]]));
+
+  const P = {
+    walk: '<circle cx="13" cy="4" r="2"/><path d="M9 21l2.5-6.5L14 17v4M11.5 14.5L13 8l-3.5 2L8 13M13 8l2 3 3 1"/>',
+    subway: '<rect x="5" y="3" width="14" height="13" rx="3"/><path d="M5 10h14M8 20l2-4M16 20l-2-4"/>',
+    train: '<rect x="6" y="2" width="12" height="14" rx="2"/><path d="M6 9h12M12 2v7M4 20h16M8 20l1.5-4M16 20l-1.5-4"/>',
+    hsr: '<path d="M2 16h15a4 4 0 0 0 4-4c0-3-5-6-12-6H2"/><path d="M2 11h9M4 20h16"/>',
+    bus: '<rect x="4" y="3" width="16" height="14" rx="2"/><path d="M4 10h16M7 17v3M17 17v3"/>',
+    car: '<path d="M4 16v-3l2-5h12l2 5v3z"/><path d="M4 13h16M7 16v3M17 16v3"/>',
+    flight: '<path d="M10 14l-7 2v-2l7-5V4a2 2 0 0 1 4 0v5l7 5v2l-7-2v4l2 2h-8l2-2z"/>',
+    ferry: '<path d="M3 18c1.5 1.5 3 1.5 4.5 0s3-1.5 4.5 0 3 1.5 4.5 0 3-1.5 4.5 0M5 15l1-5h12l1 5M9 10V6h6v4"/>',
+    other: '<path d="M4 12h14M13 6l6 6-6 6"/>',
+    activity: '<path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/>',
+    buffer: '<path d="M6 3h12M6 21h12M8 3v3l4 6-4 6v3M16 3v3l-4 6 4 6v3"/>',
+    wait: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    warn: '<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5v.5"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    x: '<path d="M6 6l12 12M18 6L6 18"/>',
+    up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
+    down: '<path d="M12 5v14M19 12l-7 7-7-7"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>',
+    del: '<path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/>',
+    chev: '<path d="M6 9l6 6 6-6"/>'
+  };
+  const icon = (k) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${P[k] || P.other}</svg>`;
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // ---- time helpers ----
+  function parseTime(str) {
+    const s = String(str || "").trim();
+    const m = s.match(/^(\d{1,2})[:.h ]?(\d{2})$/) || s.match(/^(\d{1,2})$/);
+    if (!m) return null;
+    const h = +m[1], mi = m[2] !== undefined ? +m[2] : 0;
+    if (h > 23 || mi > 59) return null;
+    return h * 60 + mi;
+  }
+  const pad = (n) => String(n).padStart(2, "0");
+  function clock(min) { const t = ((min % 1440) + 1440) % 1440; return pad(Math.floor(t / 60)) + ":" + pad(t % 60); }
+  const dayOff = (min) => Math.floor(min / 1440);
+  function offLabel(d) { if (!d) return ""; const n = Math.abs(d); return (d > 0 ? "+" : "−") + n + (n === 1 ? " day" : " days"); }
+  function dur(min) {
+    const h = Math.floor(min / 60), m = min % 60;
+    if (!h) return m + " min";
+    if (!m) return h + " h";
+    return h + " h " + m + " min";
+  }
+  function fmtTimeInput(v) {
+    v = String(v).replace(/[^\d:]/g, "");
+    if (/^\d{3,4}$/.test(v)) v = v.length === 3 ? v[0] + ":" + v.slice(1) : v.slice(0, 2) + ":" + v.slice(2);
+    return v;
+  }
+
+  // ---- leg normalisation ----
+  const GUESS = [
+    ["walk", /\b(walk|walking|on foot|stroll)\b/i],
+    ["subway", /\b(subway|metro|underground|tube)\b/i],
+    ["hsr", /\b(shinkansen|bullet train|high[- ]speed|nozomi|hikari|kodama|tgv|eurostar|acela)\b/i],
+    ["train", /\b(train|rail|railway|tram|streetcar)\b/i],
+    ["flight", /\b(flight|fly|flying|plane)\b/i],
+    ["bus", /\b(bus|coach|shuttle)\b/i],
+    ["car", /\b(drive|driving|taxi|cab|uber|lyft|car|rideshare)\b/i],
+    ["ferry", /\b(ferry|boat)\b/i]
+  ];
+  function guessMode(text) {
+    let best = null, at = Infinity;
+    GUESS.forEach(([mode, re]) => { const m = re.exec(text); if (m && m.index < at) { at = m.index; best = mode; } });
+    return best;
+  }
+  function cleanStep(t) { t = String(t).trim().replace(/\.$/, "").trim(); return t ? t[0].toUpperCase() + t.slice(1) : ""; }
+  function splitName(s) {
+    const parts = String(s).split(/\s*--\s*/);
+    if (parts.length < 2) return { name: String(s).trim(), steps: [] };
+    const steps = parts.slice(1).map(cleanStep).filter(Boolean);
+    let name = parts[0].trim();
+    if (!name) name = steps.shift() || "";
+    return { name, steps };
+  }
+  const stepsFrom = (text) => String(text || "").split(/\n/).map(cleanStep).filter(Boolean);
+  const str = (v, n = 80) => String(v == null ? "" : v).trim().slice(0, n);
+  const nonNeg = (v) => { const n = Math.round(Number(v)); return n > 0 ? n : 0; };
+  const readMin = (v) => { v = String(v).trim(); if (v === "") return 0; const n = Number(v); return Number.isInteger(n) && n >= 0 ? n : null; };
+  function normRoute(raw) {
+    return (Array.isArray(raw) ? raw : []).map((s) => {
+      if (!s || typeof s !== "object") return null;
+      if (s.type === "transfer") return { type: "transfer", mins: nonNeg(s.mins), buf: !!s.buf && nonNeg(s.bufMins) > 0, bufMins: nonNeg(s.bufMins) };
+      return { type: "ride", line: str(s.line), color: LINE_HEX[s.color] ? s.color : "", service: str(s.service), toward: str(s.toward), board: str(s.board), alight: str(s.alight), platform: str(s.platform, 30), mins: nonNeg(s.mins), stops: nonNeg(s.stops), cost: str(s.cost, 30) };
+    }).filter(Boolean);
+  }
+  // The route only applies to rail and bus legs; it is kept (not shown) if the mode changes.
+  const effRoute = (it) => (it.cat === "Transit" && RAIL.has(it.mode) ? it.route : []);
+  function xferBufs(it) {
+    const out = []; let last = "";
+    effRoute(it).forEach((s) => {
+      if (s.type === "ride") last = s.alight || "";
+      else if (s.buf && s.bufMins) out.push({ label: last ? `Transfer at ${last}` : "Transfer", mins: s.bufMins });
+    });
+    return out;
+  }
+  const allBufs = (it) => it.buffers.concat(xferBufs(it));
+  const bufSum = (it) => allBufs(it).reduce((a, b) => a + b.mins, 0);
+  const legDur = (it) => it.mins + bufSum(it);
+  function normItem(r) {
+    if (!r || typeof r !== "object") return null;
+    const sp = splitName(String(r.name || ""));
+    const steps = sp.steps.concat(Array.isArray(r.steps) ? r.steps.map(cleanStep).filter(Boolean) : []);
+    const cat = CATS.includes(r.cat) ? r.cat : "Activity";   // old "Buffer" category becomes Activity
+    const mins = Math.round(Number(r.mins));
+    if (!sp.name || !(mins > 0)) return null;
+    let mode = MODE_LABEL[r.mode] ? r.mode : null;
+    if (!mode) mode = cat === "Transit" ? guessMode(sp.name) || "other" : "other";
+    const buffers = (Array.isArray(r.buffers) ? r.buffers : []).map((b) => {
+      const bm = Math.round(Number(b && b.mins));
+      return bm > 0 ? { id: uid(), label: String((b && b.label) || "").trim().slice(0, 80) || "Buffer", mins: bm } : null;
+    }).filter(Boolean);
+    const ft = parseTime(r.fixed);
+    return { id: typeof r.id === "string" && r.id ? r.id : uid(), name: sp.name, cat, mode, mins, steps, buffers, fixed: ft !== null ? clock(ft) : "", route: normRoute(r.route) };
+  }
+  function normTrip(r) {
+    const t = parseTime(r.time);
+    const raw = Array.isArray(r.items) ? r.items : [];
+    return {
+      id: typeof r.id === "string" && r.id ? r.id : uid(),
+      name: String(r.name || "").trim().slice(0, 80) || "Untitled itinerary",
+      mode: r.mode === "arrive" ? "arrive" : "depart",
+      time: t !== null ? clock(t) : "08:00",
+      date: /^\d{4}-\d{2}-\d{2}$/.test(r.date || "") ? r.date : "",
+      items: raw.map(normItem).filter(Boolean),
+      example: !!r.example, migrated: !!r.migrated,
+      bufferConverted: !!r.bufferConverted || raw.some((i) => i && i.cat === "Buffer")
+    };
+  }
+  function seedTrip() {
+    return normTrip({
+      name: "Example: airport day", example: true, mode: "depart", time: "05:30",
+      items: [
+        { name: "Drive to airport", cat: "Transit", mode: "car", mins: 50, buffers: [{ label: "Traffic", mins: 15 }] },
+        { name: "Bag drop and security", cat: "Activity", mins: 75, buffers: [{ label: "Long security queue", mins: 15 }] },
+        { name: "Walk to gate", cat: "Transit", mode: "walk", mins: 10, buffers: [{ label: "Find the gate", mins: 5 }] },
+        { name: "Flight", cat: "Transit", mode: "flight", mins: 205, fixed: "08:40" },
+        { name: "Lunch near the terminal", cat: "Activity", mins: 60 },
+        { name: "Airport train to the city", cat: "Transit", mode: "train", mins: 40, steps: ["Buy tickets at the machines by exit B"], buffers: [{ label: "Wait for train", mins: 10 }],
+          route: [
+            { type: "ride", line: "Airport Express", color: "orange", service: "Rapid", toward: "Central", board: "Airport Terminal 1", platform: "2", mins: 25, stops: 3, alight: "Central", cost: "$12" },
+            { type: "transfer", mins: 4, buf: true, bufMins: 6 },
+            { type: "ride", line: "Line 2", color: "teal", service: "Local", toward: "Northgate", platform: "4", mins: 9, stops: 5, alight: "Harbour Street" }
+          ] },
+        { name: "Walk to hotel", cat: "Transit", mode: "walk", mins: 10 },
+        { name: "Hotel check-in", cat: "Activity", mins: 20 }
+      ]
+    });
+  }
+
+  // ---- storage ----
+  let storageOK = true;
+  function loadStore() {
+    try {
+      const s = JSON.parse(localStorage.getItem(KEY));
+      if (s && s.trips && Array.isArray(s.order)) {
+        const trips = {}, order = [];
+        s.order.forEach((id) => { if (s.trips[id] && !trips[id]) { trips[id] = normTrip(Object.assign({}, s.trips[id], { id })); order.push(id); } });
+        if (order.length) return { current: trips[s.current] ? s.current : order[0], order, trips };
+      }
+    } catch (e) {}
+    try {
+      const v1 = JSON.parse(localStorage.getItem(KEY1));
+      if (v1 && Array.isArray(v1.items) && v1.items.length) {
+        const t = normTrip(Object.assign({}, v1, { name: v1.example ? "Example: airport day" : "My itinerary", migrated: !v1.example }));
+        return { current: t.id, order: [t.id], trips: { [t.id]: t } };
+      }
+    } catch (e) {}
+    const t = seedTrip();
+    return { current: t.id, order: [t.id], trips: { [t.id]: t } };
+  }
+  let store = loadStore();
+  const T = () => store.trips[store.current];
+  let editingId = null;
+  const expanded = new Set();
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(store)); storageOK = true; } catch (e) { storageOK = false; }
+    const n = $("savedNote");
+    n.textContent = storageOK ? "Saved in this browser" : "Not saved: this browser is blocking site storage. Use Copy to back up.";
+    n.classList.toggle("bad", !storageOK);
+  }
+  function changed() { const t = T(); t.example = false; t.migrated = false; t.bufferConverted = false; save(); }
+
+  // ---- scheduling ----
+  // A fixed clock time lands on the occurrence nearest the moment you'd reach it:
+  // up to 6 h late counts as late; otherwise the next occurrence (up to 18 h of waiting).
+  function pickFixed(F, ref) {
+    let a = Math.floor((ref - 360) / 1440) * 1440 + F;
+    while (a < ref - 360) a += 1440;
+    return a;
+  }
+  function compute() {
+    const t = T(), items = t.items, anchor = parseTime(t.time);
+    const sub = { Transit: 0, Activity: 0 }, byMode = {};
+    let planned = 0;
+    items.forEach((i) => { sub[i.cat] += i.mins; planned += bufSum(i); if (i.cat === "Transit") byMode[i.mode] = (byMode[i.mode] || 0) + i.mins; });
+    const out = { sub, byMode, planned, waits: 0, rows: [], result: null, total: items.reduce((a, i) => a + legDur(i), 0), startWait: 0, endLate: 0, conflicts: [], byId: {} };
+    if (anchor === null) return out;
+    const rows = items.map((it) => ({ item: it, wait: 0, waitWhy: "", late: 0 }));
+    const f = items.findIndex((i) => i.fixed);
+    let cur;
+    if (t.mode === "depart") cur = anchor;
+    else if (f < 0) cur = anchor - out.total;
+    else {
+      // Arrive by with a fixed leg: leave as late as possible to make the first fixed leg,
+      // then run forward; any spare time before the target becomes Wait on the last leg.
+      let A = Math.floor(anchor / 1440) * 1440 + parseTime(items[f].fixed);
+      if (A > anchor) A -= 1440;
+      cur = A - items.slice(0, f).reduce((a, i) => a + legDur(i), 0);
+    }
+    const base = cur;
+    rows.forEach((r, i) => {
+      const it = r.item;
+      if (it.fixed) {
+        const A = pickFixed(parseTime(it.fixed), cur), gap = A - cur;
+        if (gap >= 0) {
+          if (i > 0) { rows[i - 1].wait += gap; rows[i - 1].end += gap; if (gap) rows[i - 1].waitWhy = `to make the fixed ${it.fixed} start of “${it.name}”`; }
+          else out.startWait = gap;
+        } else { r.late = -gap; out.conflicts.push(`${dur(r.late)} late for ${it.fixed}`); }
+        r.fixedAt = A; cur = A;
+      }
+      r.start = cur; r.end = cur + legDur(it); cur = r.end;
+    });
+    let finish = cur;
+    if (t.mode === "arrive" && rows.length) {
+      const slack = anchor - finish;
+      if (slack > 0) { const last = rows[rows.length - 1]; last.wait += slack; last.end += slack; last.waitWhy = `spare time before your ${clock(anchor)} arrival target`; finish = anchor; }
+      else if (slack < 0) { out.endLate = -slack; out.conflicts.push(`${dur(-slack)} past arrival target`); }
+    }
+    rows.forEach((r) => { out.waits += r.wait; out.byId[r.item.id] = r; });
+    out.waits += out.startWait;
+    Object.assign(out, { rows, base, finish, anchor, total: finish - base, result: t.mode === "depart" ? finish : base });
+    return out;
+  }
+  function dateFor(off) {
+    const d0 = T().date;
+    if (!d0) return "";
+    const p = d0.split("-").map(Number);
+    if (p.length !== 3 || p.some(isNaN)) return "";
+    return new Date(p[0], p[1] - 1, p[2] + off).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  }
+
+  // ---- shared bits of markup ----
+  const tagHtml = (it) => it.cat === "Transit"
+    ? `<span class="tag Transit">${icon(it.mode)}${MODE_TAG[it.mode]}</span>`
+    : `<span class="tag Activity">${icon("activity")}Activity</span>`;
+  const stepsHtml = (it) => `<ol class="steps ${it.cat}">${it.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>`;
+  // Draws a route like a transit app: station dots, colored ride bars, dotted transfers.
+  function routeHtml(it) {
+    const steps = effRoute(it);
+    if (!steps.length) return "";
+    let h = "", at = "";
+    const st = (name) => `<li class="rt-st">${esc(name)}</li>`;
+    steps.forEach((s) => {
+      if (s.type === "ride") {
+        const board = s.board || at;
+        if (board && board !== at) h += st(board);
+        const hex = LINE_HEX[s.color];
+        const head = [
+          s.line ? `<span class="line-badge${hex ? "" : " plain"}"${hex ? ` style="background:${hex}"` : ""}>${esc(s.line)}</span>` : "",
+          s.service ? esc(s.service) : "", s.toward ? `toward ${esc(s.toward)}` : ""
+        ].filter(Boolean).join(" ");
+        const meta = [s.mins ? dur(s.mins) : "", s.stops ? `${s.stops} stop${s.stops === 1 ? "" : "s"}` : "", s.platform ? `Platform ${esc(s.platform)}` : "", s.cost ? esc(s.cost) : ""].filter(Boolean).join(" · ");
+        h += `<li class="rt-ride"${hex ? ` style="--line:${hex}"` : ""}>${head ? `<div>${head}</div>` : ""}${meta ? `<div class="rt-meta">${meta}</div>` : ""}</li>`;
+        if (s.alight) h += st(s.alight);
+        at = s.alight || "";
+      } else {
+        const parts = [s.mins ? `walk ${dur(s.mins)}` : "", s.buf && s.bufMins ? `<span class="bv">buffer ${dur(s.bufMins)}</span>` : ""].filter(Boolean).join(" + ");
+        h += `<li class="rt-xfer">Transfer${parts ? ": " + parts : ""}</li>`;
+      }
+    });
+    return `<ol class="route" aria-label="Route">${h}</ol>`;
+  }
+  const modeOptions = (sel) => MODES.map(([v, l]) => `<option value="${v}"${v === sel ? " selected" : ""}>${l}</option>`).join("");
+  // "Leg 10 min + Buffer 15 min + Wait 5 min = Total 30 min"
+  function sumHtml(it, r) {
+    const b = bufSum(it), w = r ? r.wait : 0;
+    const parts = [`Leg <b>${dur(it.mins)}</b>`];
+    if (b) parts.push(`Buffer <b class="bv">${dur(b)}</b>`);
+    if (w) parts.push(`Wait <b class="bv">${dur(w)}</b>`);
+    return `<div class="sum">${parts.join(" + ")}${parts.length > 1 ? ` = Total <b>${dur(it.mins + b + w)}</b>` : ""}</div>`;
+  }
+  function tagsHtml(it, r) {
+    let h = tagHtml(it);
+    if (bufSum(it)) h += `<span class="tag buf">${icon("buffer")}Buffer ${dur(bufSum(it))}</span>`;
+    if (r && r.wait) h += `<span class="tag buf">${icon("wait")}Wait ${dur(r.wait)}</span>`;
+    if (it.fixed) h += `<span class="tag fixed">${icon("lock")}Fixed start ${it.fixed}</span>`;
+    if (r && r.late) h += `<span class="tag late">${icon("warn")}${dur(r.late)} late</span>`;
+    return h;
+  }
+
+  let bufSeq = 0;
+  function bufRowHtml(b) {
+    const k = ++bufSeq, h = b ? Math.floor(b.mins / 60) : "", m = b ? b.mins % 60 : "";
+    return `<div class="buf-row">
+      <input type="text" class="b-label" id="buf${k}l" aria-label="Buffer reason" placeholder="Find the platform" value="${b ? esc(b.label) : ""}" maxlength="80">
+      <div class="unit"><input type="number" class="b-h" id="buf${k}h" min="0" step="1" inputmode="numeric" aria-label="Buffer hours" placeholder="0" value="${h || ""}"><span>h</span></div>
+      <div class="unit"><input type="number" class="b-m" id="buf${k}m" min="0" max="59" step="1" inputmode="numeric" aria-label="Buffer minutes" placeholder="0" value="${m === "" ? "" : m}"><span>min</span></div>
+      <button type="button" class="ib del" data-bact="del" aria-label="Remove this buffer">${icon("x")}</button>
+    </div>`;
+  }
+  function rideRowHtml(s, prevAlight) {
+    const k = ++bufSeq, v = (x) => (s && s[x] ? esc(s[x]) : ""), num = (x) => (s && s[x] ? s[x] : "");
+    return `<div class="rs" data-type="ride">
+      <div class="rs-head"><span>${icon("subway")}Ride</span><button type="button" class="ib del" data-ract="del" aria-label="Remove this ride">${icon("x")}</button></div>
+      <div class="rs-grid">
+        <label class="f" for="rs${k}a">Line<input type="text" class="r-line" id="rs${k}a" value="${v("line")}" placeholder="Fukutoshin Line" maxlength="80"></label>
+        <label class="f" for="rs${k}b">Line color<select class="r-color" id="rs${k}b">${LINE_COLORS.map(([c, l]) => `<option value="${c}"${s && s.color === c ? " selected" : ""}>${l}</option>`).join("")}</select></label>
+        <label class="f" for="rs${k}c">Service type<input type="text" class="r-service" id="rs${k}c" value="${v("service")}" placeholder="Local" maxlength="80"></label>
+        <label class="f" for="rs${k}d">Toward (last stop)<input type="text" class="r-toward" id="rs${k}d" value="${v("toward")}" placeholder="Musashi-Kosugi" maxlength="80"></label>
+        <label class="f" for="rs${k}e">Board at<input type="text" class="r-board" id="rs${k}e" value="${v("board")}" placeholder="${prevAlight ? esc(prevAlight) : "Higashi-Shinjuku Station"}" maxlength="80"></label>
+        <label class="f" for="rs${k}f">Platform<input type="text" class="r-platform" id="rs${k}f" value="${v("platform")}" placeholder="1/2" maxlength="30"></label>
+        <label class="f" for="rs${k}g">Ride time<span class="unit"><input type="number" class="r-mins" id="rs${k}g" min="0" step="1" inputmode="numeric" value="${num("mins")}" placeholder="0"><span>min</span></span></label>
+        <label class="f" for="rs${k}h">Stops<input type="number" class="r-stops" id="rs${k}h" min="0" step="1" inputmode="numeric" value="${num("stops")}" placeholder="0"></label>
+        <label class="f" for="rs${k}i">Get off at<input type="text" class="r-alight" id="rs${k}i" value="${v("alight")}" placeholder="Shinjuku-sanchome Station" maxlength="80"></label>
+        <label class="f" for="rs${k}j">Cost (note only)<input type="text" class="r-cost" id="rs${k}j" value="${v("cost")}" placeholder="¥180" maxlength="30"></label>
+      </div></div>`;
+  }
+  function xferRowHtml(s) {
+    const k = ++bufSeq, on = !!(s && s.buf);
+    return `<div class="rs xfer" data-type="transfer">
+      <div class="rs-head"><span>${icon("walk")}Transfer</span><button type="button" class="ib del" data-ract="del" aria-label="Remove this transfer">${icon("x")}</button></div>
+      <div class="rs-grid">
+        <label class="f" for="rs${k}a">Walk time<span class="unit"><input type="number" class="t-mins" id="rs${k}a" min="0" step="1" inputmode="numeric" value="${s && s.mins ? s.mins : ""}" placeholder="0"><span>min</span></span></label>
+        <div class="f"><label class="chk" for="rs${k}b"><input type="checkbox" class="t-buf" id="rs${k}b"${on ? " checked" : ""}>Transfer buffer</label>
+          <span class="unit t-bufwrap"${on ? "" : " hidden"}><input type="number" class="t-bufmins" id="rs${k}c" min="0" step="1" inputmode="numeric" aria-label="Transfer buffer minutes" value="${s && s.bufMins ? s.bufMins : ""}" placeholder="0"><span>min</span></span></div>
+      </div></div>`;
+  }
+  function routeStepsHtml(route) {
+    let last = "";
+    return route.map((s) => { const h = s.type === "ride" ? rideRowHtml(s, last) : xferRowHtml(s); if (s.type === "ride") last = s.alight || last; return h; }).join("");
+  }
+  function syncRouteBox(form) {
+    const box = form.querySelector(".route-box");
+    if (box) box.hidden = !(form.querySelector(".f-cat").value === "Transit" && RAIL.has(form.querySelector(".f-mode").value));
+  }
+  function updateRouteHint(form) {
+    const hint = form.querySelector(".route-hint");
+    if (!hint) return;
+    let sum = 0;
+    form.querySelectorAll(".r-mins, .t-mins").forEach((x) => { const n = readMin(x.value); if (n) sum += n; });
+    if (!sum) { hint.innerHTML = ""; return; }
+    const leg = readDur(form.querySelector(".f-h").value, form.querySelector(".f-m").value, "Leg");
+    hint.innerHTML = `<span>Ride and walk times add up to ${dur(sum)}. Transfer buffers count as buffers, not leg time.</span>` +
+      (typeof leg === "number" && leg !== sum ? `<button type="button" class="btn small" data-ract="use" data-mins="${sum}">Use ${dur(sum)} as leg time</button>` : "");
+  }
+  function legFormHtml(p, it, isEdit) {
+    const cat = it ? it.cat : "Transit", h = it ? Math.floor(it.mins / 60) : "", m = it ? it.mins % 60 : "";
+    const showRoute = cat === "Transit" && RAIL.has(it ? it.mode : "other");
+    return `
+      <label class="f" for="${p}name">Name
+        <input type="text" class="f-name" id="${p}name" value="${it ? esc(it.name) : ""}" placeholder="Subway: Higashi-Shinjuku to Tokyo Station" autocomplete="off">
+      </label>
+      <div class="meta-row">
+        <label class="f" for="${p}cat">Category
+          <select class="f-cat" id="${p}cat">${CATS.map((c) => `<option${c === cat ? " selected" : ""}>${c}</option>`).join("")}</select>
+        </label>
+        <label class="f f-modewrap" for="${p}mode"${cat === "Transit" ? "" : " hidden"}>Mode
+          <select class="f-mode" id="${p}mode">${modeOptions(it ? it.mode : "other")}</select>
+        </label>
+        <div class="f dur-group" role="group" aria-label="Leg time">
+          <span>Leg time (without buffers)</span>
+          <div class="dur">
+            <div class="unit"><input type="number" class="f-h" id="${p}h" min="0" step="1" inputmode="numeric" aria-label="Leg hours" placeholder="0" value="${h || ""}"><span>h</span></div>
+            <div class="unit"><input type="number" class="f-m" id="${p}m" min="0" max="59" step="1" inputmode="numeric" aria-label="Leg minutes" placeholder="0" value="${m === "" ? "" : m}"><span>min</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="route-box"${showRoute ? "" : " hidden"}>
+        <div class="title">${icon("subway")}Route: rides and transfers, in order</div>
+        <div class="rsteps">${it ? routeStepsHtml(it.route) : ""}</div>
+        <div class="bar">
+          <button type="button" class="btn small" data-ract="ride">${icon("plus")}Ride</button>
+          <button type="button" class="btn small" data-ract="xfer">${icon("plus")}Transfer</button>
+        </div>
+        <div class="route-hint hint"></div>
+      </div>
+      <div class="bufs-box">
+        <div class="title">${icon("buffer")}Buffers: extra time at the end of this leg, before the next one starts</div>
+        <div class="bufs">${it ? it.buffers.map(bufRowHtml).join("") : ""}</div>
+        <button type="button" class="btn small add-buf" data-bact="add">${icon("plus")}Add buffer</button>
+      </div>
+      <div class="fx">
+        <label class="chk" for="${p}fx"><input type="checkbox" class="fx-on" id="${p}fx"${it && it.fixed ? " checked" : ""}>Fixed start time</label>
+        <input type="text" class="fx-time" id="${p}fxt" aria-label="Fixed start time, 24-hour" inputmode="numeric" placeholder="HH:MM" maxlength="5" autocomplete="off" value="${it && it.fixed ? it.fixed : ""}"${it && it.fixed ? "" : " hidden"}>
+        <span class="hint">For a booked train or flight. Any gap before it is added as Wait on the previous leg.</span>
+      </div>
+      <label class="f" for="${p}steps">Notes (optional, one per line)
+        <textarea class="f-steps" id="${p}steps" rows="${it ? Math.max(2, it.steps.length) : 2}" placeholder="Fukutoshin Line to Shinjuku-sanchome&#10;Transfer to Marunouchi Line">${it ? esc(it.steps.join("\n")) : ""}</textarea>
+      </label>
+      <div class="bar">
+        <button class="btn primary${isEdit ? " small" : ""}" type="submit">${isEdit ? "Save" : "Add"}</button>
+        ${isEdit ? '<button class="btn small" type="button" data-act="cancel">Cancel</button>' : ""}
+        <div class="msg f-msg" role="alert"></div>
+      </div>`;
+  }
+  function readDur(hv, mv, what) {
+    const hs = String(hv).trim(), ms = String(mv).trim();
+    const h = hs === "" ? 0 : Number(hs), m = ms === "" ? 0 : Number(ms);
+    if (!Number.isInteger(h) || h < 0) return `${what} hours must be a whole number, 0 or more.`;
+    if (!Number.isInteger(m) || m < 0 || m > 59) return `${what} minutes must be a whole number from 0 to 59.`;
+    return h * 60 + m;
+  }
+  // Reads an add/edit form into leg fields, or returns { err, el }.
+  function readLegForm(f) {
+    const q = (s) => f.querySelector(s);
+    const sp = splitName(q(".f-name").value);
+    if (!sp.name) return { err: "Enter a name for this leg.", el: q(".f-name") };
+    const mins = readDur(q(".f-h").value, q(".f-m").value, "Leg");
+    if (typeof mins === "string") return { err: mins, el: q(".f-h") };
+    if (!mins) return { err: "Leg time must be longer than 0 minutes.", el: q(".f-m") };
+    const buffers = [];
+    for (const row of f.querySelectorAll(".buf-row")) {
+      const label = row.querySelector(".b-label").value.trim();
+      const bm = readDur(row.querySelector(".b-h").value, row.querySelector(".b-m").value, "Buffer");
+      if (typeof bm === "string") return { err: bm, el: row.querySelector(".b-h") };
+      if (!bm && !label) continue;
+      if (!bm) return { err: `Give the “${label}” buffer some time, or remove it.`, el: row.querySelector(".b-m") };
+      buffers.push({ id: uid(), label: label || "Buffer", mins: bm });
+    }
+    const route = [];
+    for (const s of f.querySelectorAll(".rs")) {
+      const v = (c) => (s.querySelector(c) ? s.querySelector(c).value : "").trim();
+      if (s.dataset.type === "ride") {
+        const mins = readMin(v(".r-mins")), stops = readMin(v(".r-stops"));
+        if (mins === null) return { err: "Ride time must be a whole number of minutes.", el: s.querySelector(".r-mins") };
+        if (stops === null) return { err: "Stops must be a whole number.", el: s.querySelector(".r-stops") };
+        const r = { type: "ride", line: v(".r-line"), color: v(".r-color"), service: v(".r-service"), toward: v(".r-toward"), board: v(".r-board"), alight: v(".r-alight"), platform: v(".r-platform"), mins, stops, cost: v(".r-cost") };
+        if (!r.line && !r.service && !r.toward && !r.board && !r.alight && !r.platform && !r.cost && !mins && !stops) continue;
+        route.push(r);
+      } else {
+        const mins = readMin(v(".t-mins")), on = s.querySelector(".t-buf").checked, bm = readMin(v(".t-bufmins"));
+        if (mins === null) return { err: "Transfer walk time must be a whole number of minutes.", el: s.querySelector(".t-mins") };
+        if (bm === null) return { err: "Transfer buffer must be a whole number of minutes.", el: s.querySelector(".t-bufmins") };
+        if (on && !bm) return { err: "Give the transfer buffer some time, or switch it off.", el: s.querySelector(".t-bufmins") };
+        if (!mins && !on) continue;
+        route.push({ type: "transfer", mins, buf: on, bufMins: on ? bm : 0 });
+      }
+    }
+    let fixed = "";
+    if (q(".fx-on").checked) {
+      const ft = parseTime(q(".fx-time").value);
+      if (ft === null) return { err: "Enter the fixed start as 24-hour time, like 12:21.", el: q(".fx-time") };
+      fixed = clock(ft);
+    }
+    const cat = q(".f-cat").value;
+    return { leg: { name: sp.name, cat, mode: cat === "Transit" ? q(".f-mode").value : "other", mins, buffers, fixed, route, steps: sp.steps.concat(stepsFrom(q(".f-steps").value)) } };
+  }
+
+  // ---- render ----
+  function renderTrips() {
+    $("tripSel").innerHTML = store.order.map((id) => `<option value="${id}"${id === store.current ? " selected" : ""}>${esc(store.trips[id].name)}</option>`).join("");
+    $("bTrip").textContent = T().name;
+    $("bTrip").title = T().name;
+  }
+  function renderAnchor() {
+    const t = T();
+    $("modeDepart").checked = t.mode === "depart";
+    $("modeArrive").checked = t.mode === "arrive";
+    $("aTimeLabel").textContent = t.mode === "depart" ? "Departure time (24 h)" : "Arrival time (24 h)";
+    if (document.activeElement !== $("aTime")) $("aTime").value = t.time;
+    $("aDate").value = t.date || "";
+    $("aMsg").textContent = ""; $("aTime").classList.remove("err");
+  }
+  function renderList(c) {
+    const t = T(), ul = $("list");
+    const note = t.example ? "Example trip. Edit, reorder or clear it, or choose New above to start your own."
+      : t.migrated ? "Carried over from the earlier version: text after “--” is now route steps and transit modes were guessed from leg names. Check them and edit anything that looks off."
+      : t.bufferConverted ? "Buffers now belong to each leg. Legs that were in the old Buffer category are now Activity legs: move their time into another leg’s buffers, then delete them."
+      : "";
+    $("listNote").hidden = !note; $("listNote").textContent = note;
+    $("clearBtn").hidden = !t.items.length;
+    if (!t.items.length) { ul.innerHTML = '<li class="empty">No legs yet. Add the first one above, starting with how you leave.</li>'; return; }
+    // Keep an open edit form in place so live recalculation never wipes unsaved edits.
+    const keep = editingId ? ul.querySelector(`.row[data-id="${editingId}"]`) : null;
+    const n = t.items.length;
+    ul.innerHTML = t.items.map((it, i) => {
+      if (it.id === editingId) {
+        if (keep && keep.querySelector("form")) return `<li data-keep="1"></li>`;
+        return `<li class="row ${it.cat}" data-id="${it.id}"><span class="idx">${pad(i + 1)}</span>
+          <form class="leg-form" data-edit="${it.id}" novalidate>${legFormHtml("e-" + it.id + "-", it, true)}</form></li>`;
+      }
+      const r = c.byId[it.id], open = expanded.has(it.id), k = it.steps.length;
+      const rides = effRoute(it).filter((s) => s.type === "ride").length;
+      const dl = [rides ? `${rides} ride${rides === 1 ? "" : "s"}` : "", k ? `${k} note${k === 1 ? "" : "s"}` : ""].filter(Boolean).join(", ");
+      return `<li class="row ${it.cat}" data-id="${it.id}">
+        <span class="idx">${pad(i + 1)}</span>
+        <div style="min-width:0"><div class="nm">${esc(it.name)}</div>
+          <div class="sub">${tagsHtml(it, r)}${dl ? `<button class="steps-btn" type="button" data-act="steps" aria-expanded="${open}">${dl}${icon("chev")}</button>` : ""}</div>
+          ${sumHtml(it, r)}
+          ${dl && open ? routeHtml(it) + (k ? stepsHtml(it) : "") : ""}</div>
+        <div class="acts">
+          <button class="ib" type="button" data-act="up" aria-label="Move ${esc(it.name)} up"${i === 0 ? " disabled" : ""}>${icon("up")}</button>
+          <button class="ib" type="button" data-act="down" aria-label="Move ${esc(it.name)} down"${i === n - 1 ? " disabled" : ""}>${icon("down")}</button>
+          <button class="ib" type="button" data-act="edit" aria-label="Edit ${esc(it.name)}">${icon("edit")}</button>
+          <button class="ib del" type="button" data-act="del" aria-label="Delete ${esc(it.name)}">${icon("del")}</button>
+        </div></li>`;
+    }).join("");
+    const slot = ul.querySelector("[data-keep]");
+    if (slot && keep) {
+      slot.replaceWith(keep);
+      keep.querySelector(".idx").textContent = pad(t.items.findIndex((x) => x.id === editingId) + 1);
+    }
+  }
+  function renderResults(c) {
+    const t = T(), depart = t.mode === "depart";
+    $("bLabel").textContent = depart ? "Arrive at" : "Leave at";
+    $("bCount").textContent = t.items.length;
+    $("bTotal").textContent = dur(c.total);
+    $("tAll").textContent = dur(c.total);
+    $("tTransit").textContent = dur(c.sub.Transit);
+    $("tActivity").textContent = dur(c.sub.Activity);
+    $("tBuf").textContent = dur(c.planned + c.waits);
+    $("tBufD").textContent = `Buffers ${dur(c.planned)} · Waits ${dur(c.waits)}`;
+    const used = MODES.filter(([m]) => c.byMode[m]);
+    $("byModeWrap").hidden = !used.length;
+    $("byMode").innerHTML = used.map(([m, l]) => `<li>${icon(m)}<span>${l}</span><b>${dur(c.byMode[m])}</b></li>`).join("");
+
+    const w = $("bWarn");
+    w.hidden = !c.conflicts.length;
+    w.innerHTML = c.conflicts.length ? icon("warn") + esc(c.conflicts.length === 1 ? c.conflicts[0] : `${c.conflicts.length} timing conflicts`) : "";
+
+    if (c.result === null) {
+      $("bTime").textContent = "--:--"; $("bOff").hidden = true; $("bDate").textContent = "";
+      $("timeline").innerHTML = '<li><span></span><span class="sub">Enter a valid anchor time to see the timeline.</span></li>';
+      return;
+    }
+    const off = dayOff(c.result);
+    $("bTime").textContent = clock(c.result);
+    $("bOff").hidden = !off; $("bOff").textContent = offLabel(off);
+    $("bDate").textContent = dateFor(off);
+
+    const tag = (m) => { const d = dayOff(m); return d ? ` <span class="off">${offLabel(d)}</span>` : ""; };
+    let html = `<li><div class="times">${clock(c.base)}${tag(c.base)}</div>
+      <div class="what"><div class="end-mark${depart ? "" : " hi"}">${depart ? "Depart (anchor)" : "Leave by"}</div>
+      ${c.startWait ? `<div class="bl">Wait ${dur(c.startWait)} until the fixed ${t.items[0].fixed} start of the first leg</div>` : ""}</div></li>`;
+    html += c.rows.map((r) => {
+      const it = r.item;
+      const ab = allBufs(it);
+      const bl = ab.length ? `<div class="bl">Buffers: ${ab.map((b) => `${esc(b.label)} ${dur(b.mins)}`).join(" · ")}</div>` : "";
+      const wl = r.wait ? `<div class="bl">Wait ${dur(r.wait)}: ${esc(r.waitWhy)}</div>` : "";
+      const ll = r.late ? `<div class="late-note">You reach this leg ${dur(r.late)} after its fixed ${it.fixed} start. Trim buffers earlier in the day or choose a later time.</div>` : "";
+      return `<li${r.late ? ' class="is-late"' : ""}>
+        <div class="times"><span>${it.fixed ? icon("lock") : ""}${clock(r.start)}${tag(r.start)}</span><br><span class="e">${clock(r.end)}${tag(r.end)}</span></div>
+        <div class="what"><div class="nm">${esc(it.name)}</div>
+          <div class="sub">${tagsHtml(it, r)}</div>
+          ${sumHtml(it, r)}${ll}${bl}${wl}
+          ${routeHtml(it)}${it.steps.length ? stepsHtml(it) : ""}</div></li>`;
+    }).join("");
+    html += `<li><div class="times">${clock(c.finish)}${tag(c.finish)}</div>
+      <div class="what"><div class="end-mark${depart ? " hi" : ""}">${depart ? "Arrive" : "Arrive (anchor)"}</div>
+      ${c.endLate ? `<div class="late-note">The plan arrives ${dur(c.endLate)} after your ${t.time} arrival target. Trim buffers or move a fixed start earlier.</div>` : ""}</div></li>`;
+    $("timeline").innerHTML = html;
+  }
+  function refresh() { const c = compute(); renderList(c); renderResults(c); }
+  function render() { renderTrips(); renderAnchor(); refresh(); }
+
+  // ---- itinerary switcher ----
+  function uniqueName(n) {
+    const names = new Set(store.order.map((id) => store.trips[id].name));
+    if (!names.has(n)) return n;
+    let k = 2; while (names.has(`${n} (${k})`)) k++;
+    return `${n} (${k})`;
+  }
+  function insertTrip(t) {
+    store.trips[t.id] = t;
+    store.order.splice(store.order.indexOf(store.current) + 1, 0, t.id);
+    store.current = t.id;
+  }
+  function switchTo(id) { store.current = id; editingId = null; expanded.clear(); save(); render(); }
+  function startRename(selectAll) {
+    $("tripView").hidden = true; $("tripRename").hidden = false; $("tripMsg").textContent = "";
+    $("tripName").value = T().name; $("tripName").focus();
+    if (selectAll) $("tripName").select();
+  }
+  function endRename() { $("tripRename").hidden = true; $("tripView").hidden = false; $("tripMsg").textContent = ""; }
+
+  $("tripSel").addEventListener("change", (e) => switchTo(e.target.value));
+  $("tripNew").addEventListener("click", () => {
+    insertTrip(normTrip({ name: uniqueName("New itinerary"), time: "08:00" }));
+    editingId = null; expanded.clear(); save(); render(); startRename(true);
+  });
+  $("tripDup").addEventListener("click", () => {
+    const copy = normTrip(JSON.parse(JSON.stringify(T())));
+    copy.id = uid(); copy.items.forEach((i) => (i.id = uid()));
+    copy.name = uniqueName(T().name + " (copy)"); copy.example = false; copy.migrated = false; copy.bufferConverted = false;
+    insertTrip(copy); editingId = null; expanded.clear(); save(); render();
+  });
+  $("tripRen").addEventListener("click", () => startRename(false));
+  $("tripRenCancel").addEventListener("click", endRename);
+  $("tripName").addEventListener("keydown", (e) => { if (e.key === "Escape") endRename(); });
+  $("tripRename").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = $("tripName").value.trim();
+    if (!v) { $("tripMsg").textContent = "Enter a name for this itinerary."; return; }
+    T().name = v.slice(0, 80); save(); endRename(); renderTrips();
+  });
+  $("tripDel").addEventListener("click", () => {
+    const idx = store.order.indexOf(store.current), removed = store.trips[store.current];
+    store.order.splice(idx, 1); delete store.trips[removed.id];
+    let blankId = null;
+    if (!store.order.length) { const b = normTrip({ name: "New itinerary" }); blankId = b.id; store.trips[b.id] = b; store.order.push(b.id); }
+    switchTo(store.order[Math.min(idx, store.order.length - 1)]);
+    showUndo(`Deleted “${removed.name}”.`, () => {
+      if (blankId && store.trips[blankId] && !store.trips[blankId].items.length) { delete store.trips[blankId]; store.order = store.order.filter((x) => x !== blankId); }
+      store.trips[removed.id] = removed; store.order.splice(Math.min(idx, store.order.length), 0, removed.id); store.current = removed.id;
+    });
+  });
+
+  // ---- backup / restore ----
+  function exportText(trips) {
+    return JSON.stringify({
+      format: "leg-by-leg", version: 3,
+      itineraries: trips.map((t) => ({
+        name: t.name, mode: t.mode, time: t.time, date: t.date,
+        items: t.items.map((i) => Object.assign({ name: i.name, cat: i.cat }, i.cat === "Transit" ? { mode: i.mode } : {}, { mins: i.mins },
+          i.buffers.length ? { buffers: i.buffers.map((b) => ({ label: b.label, mins: b.mins })) } : {},
+          i.fixed ? { fixed: i.fixed } : {}, i.route.length ? { route: i.route } : {}, i.steps.length ? { steps: i.steps } : {}))
+      }))
+    });
+  }
+  function ioMsg(text, ok) { $("ioMsg").textContent = text; $("ioMsg").classList.toggle("ok", !!ok); }
+  function copyOut(trips) {
+    const txt = exportText(trips), ta = $("ioText");
+    ta.value = txt;
+    const what = trips.length === 1 ? `“${trips[0].name}”` : `all ${trips.length} itineraries`;
+    const fallback = () => { ta.focus(); ta.select(); ioMsg(`Backup of ${what} is in the box below. Select it and copy it.`, true); };
+    try { navigator.clipboard.writeText(txt).then(() => ioMsg(`Copied ${what}. Paste it somewhere safe.`, true), fallback); }
+    catch (e) { fallback(); }
+  }
+  $("copyOne").addEventListener("click", () => copyOut([T()]));
+  $("copyAll").addEventListener("click", () => copyOut(store.order.map((id) => store.trips[id])));
+  $("importBtn").addEventListener("click", () => {
+    const txt = $("ioText").value.trim();
+    if (!txt) { ioMsg("Paste backup text into the box first."); return; }
+    let data;
+    try { data = JSON.parse(txt); } catch (e) { ioMsg("That text isn’t a complete Leg by Leg backup. Paste the whole thing, from the first { to the last }."); return; }
+    const list = Array.isArray(data) ? data : data && Array.isArray(data.itineraries) ? data.itineraries : data && Array.isArray(data.items) ? [data] : null;
+    const added = [];
+    (list || []).forEach((r) => {
+      if (!r || !Array.isArray(r.items)) return;
+      const t = normTrip(r);
+      t.id = uid(); t.items.forEach((i) => (i.id = uid()));
+      t.name = uniqueName(t.name); t.example = false; t.migrated = false;
+      store.trips[t.id] = t; store.order.push(t.id); added.push(t);
+    });
+    if (!added.length) { ioMsg("No itineraries found in that text."); return; }
+    $("ioText").value = "";
+    switchTo(added[0].id);
+    ioMsg(`Imported ${added.length === 1 ? "1 itinerary" : added.length + " itineraries"}. Now showing “${added[0].name}”.`, true);
+  });
+
+  // ---- anchor events ----
+  document.querySelectorAll("input[name=mode]").forEach((r) => r.addEventListener("change", () => {
+    T().mode = r.value; changed(); renderAnchor(); refresh();
+  }));
+  $("aTime").addEventListener("input", (e) => {
+    const v = fmtTimeInput(e.target.value);
+    if (v !== e.target.value) e.target.value = v;
+    const t = parseTime(v), bad = t === null && v.length >= 4;
+    if (t !== null) { T().time = clock(t); changed(); } else T().time = v;
+    $("aTime").classList.toggle("err", bad);
+    $("aMsg").textContent = bad ? "Use 24-hour time, like 07:45 or 18:30." : "";
+    refresh();
+  });
+  $("aTime").addEventListener("blur", (e) => {
+    const t = parseTime(e.target.value);
+    if (t !== null) { T().time = clock(t); e.target.value = T().time; $("aMsg").textContent = ""; e.target.classList.remove("err"); save(); }
+    else if (e.target.value) { $("aMsg").textContent = "Use 24-hour time, like 07:45 or 18:30."; e.target.classList.add("err"); }
+    refresh();
+  });
+  $("aDate").addEventListener("input", (e) => { T().date = e.target.value; changed(); refresh(); });
+
+  // ---- leg form controls (add + edit share these) ----
+  document.addEventListener("click", (e) => {
+    const ra = e.target.closest("[data-ract]");
+    if (ra) {
+      const form = ra.closest("form"), box = form.querySelector(".rsteps"), act = ra.dataset.ract;
+      if (act === "ride") {
+        const prev = [...box.querySelectorAll(".r-alight")].map((x) => x.value.trim()).filter(Boolean).pop() || "";
+        box.insertAdjacentHTML("beforeend", rideRowHtml(null, prev));
+        box.lastElementChild.querySelector("input").focus();
+      } else if (act === "xfer") {
+        box.insertAdjacentHTML("beforeend", xferRowHtml(null));
+        box.lastElementChild.querySelector("input").focus();
+      } else if (act === "del") {
+        ra.closest(".rs").remove();
+        form.querySelector('[data-ract="ride"]').focus();
+      } else if (act === "use") {
+        const m = Number(ra.dataset.mins);
+        form.querySelector(".f-h").value = Math.floor(m / 60) || "";
+        form.querySelector(".f-m").value = m % 60;
+      }
+      updateRouteHint(form);
+      return;
+    }
+    const b = e.target.closest("[data-bact]"); if (!b) return;
+    const form = b.closest("form");
+    if (b.dataset.bact === "add") {
+      form.querySelector(".bufs").insertAdjacentHTML("beforeend", bufRowHtml(null));
+      const rows = form.querySelectorAll(".buf-row");
+      rows[rows.length - 1].querySelector(".b-label").focus();
+    } else if (b.dataset.bact === "del") {
+      b.closest(".buf-row").remove();
+      form.querySelector(".add-buf").focus();
+    }
+  });
+  document.addEventListener("change", (e) => {
+    const el = e.target, form = el.closest && el.closest("form.leg-form, #addForm");
+    if (!form) return;
+    if (el.classList.contains("f-cat")) form.querySelector(".f-modewrap").hidden = el.value !== "Transit";
+    if (el.classList.contains("f-cat") || el.classList.contains("f-mode")) syncRouteBox(form);
+    if (el.classList.contains("fx-on")) { const ti = form.querySelector(".fx-time"); ti.hidden = !el.checked; if (el.checked) ti.focus(); }
+    if (el.classList.contains("t-buf")) { const w = el.closest(".rs").querySelector(".t-bufwrap"); w.hidden = !el.checked; if (el.checked) w.querySelector("input").focus(); }
+    if (el.classList.contains("f-mode") && form.id === "addForm") modeTouched = true;
+  });
+  document.addEventListener("input", (e) => {
+    const el = e.target, form = el.closest && el.closest("form.leg-form, #addForm");
+    if (!form) return;
+    const msg = form.querySelector(".f-msg"); if (msg) msg.textContent = "";
+    form.querySelectorAll(".err").forEach((x) => x.classList.remove("err"));
+    if (el.classList.contains("fx-time")) { const v = fmtTimeInput(el.value); if (v !== el.value) el.value = v; }
+    if (el.classList.contains("f-name") && form.id === "addForm" && !modeTouched) { form.querySelector(".f-mode").value = guessMode(splitName(el.value).name) || "other"; syncRouteBox(form); }
+    if (el.matches(".r-mins, .t-mins, .f-h, .f-m")) updateRouteHint(form);
+  });
+  function showFormError(form, r) {
+    form.querySelector(".f-msg").textContent = r.err;
+    if (r.el) { r.el.classList.add("err"); r.el.focus(); }
+  }
+
+  // ---- add ----
+  let modeTouched = false;
+  function resetAddForm(cat) {
+    $("addForm").innerHTML = legFormHtml("n-", null, false);
+    if (cat) { $("n-cat").value = cat; $("addForm").querySelector(".f-modewrap").hidden = cat !== "Transit"; }
+    syncRouteBox($("addForm"));
+    modeTouched = false;
+  }
+  $("addForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const r = readLegForm($("addForm"));
+    if (r.err) { showFormError($("addForm"), r); return; }
+    const it = Object.assign({ id: uid() }, r.leg);
+    T().items.push(it); changed();
+    resetAddForm(it.cat);
+    refresh(); flash(it.id);
+    $("n-name").focus();
+  });
+  resetAddForm();
+
+  function flash(id) {
+    const el = document.querySelector(`.row[data-id="${id}"]`);
+    if (!el) return;
+    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+    if (el.scrollIntoView) el.scrollIntoView({ block: "nearest" });
+  }
+
+  // ---- list actions ----
+  $("list").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const id = b.closest(".row").dataset.id, items = T().items;
+    const i = items.findIndex((x) => x.id === id), act = b.dataset.act;
+    if (act === "up" || act === "down") {
+      const j = act === "up" ? i - 1 : i + 1;
+      if (j < 0 || j >= items.length) return;
+      [items[i], items[j]] = [items[j], items[i]];
+      changed(); refresh(); flash(id);
+      const btn = document.querySelector(`.row[data-id="${id}"] [data-act="${act}"]`);
+      (btn && !btn.disabled ? btn : document.querySelector(`.row[data-id="${id}"] [data-act="${act === "up" ? "down" : "up"}"]`))?.focus();
+    } else if (act === "steps") {
+      expanded.has(id) ? expanded.delete(id) : expanded.add(id);
+      refresh();
+      document.querySelector(`.row[data-id="${id}"] [data-act="steps"]`)?.focus();
+    } else if (act === "edit") {
+      editingId = id; refresh();
+      const ef = document.querySelector(`form[data-edit="${id}"]`);
+      if (ef) updateRouteHint(ef);
+      document.getElementById(`e-${id}-name`)?.focus();
+    } else if (act === "cancel") {
+      editingId = null; refresh();
+      document.querySelector(`.row[data-id="${id}"] [data-act="edit"]`)?.focus();
+    } else if (act === "del") {
+      const removed = items.splice(i, 1)[0], tripId = store.current;
+      if (editingId === id) editingId = null;
+      changed(); refresh();
+      showUndo(`Deleted “${removed.name}”.`, () => { const t = store.trips[tripId]; if (t) { t.items.splice(i, 0, removed); store.current = tripId; } });
+    }
+  });
+  $("list").addEventListener("submit", (e) => {
+    const f = e.target.closest("form[data-edit]"); if (!f) return;
+    e.preventDefault();
+    const id = f.dataset.edit, r = readLegForm(f);
+    if (r.err) { showFormError(f, r); return; }
+    Object.assign(T().items.find((x) => x.id === id), r.leg);
+    editingId = null; changed(); refresh(); flash(id);
+  });
+  $("list").addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && editingId) { const id = editingId; editingId = null; refresh(); document.querySelector(`.row[data-id="${id}"] [data-act="edit"]`)?.focus(); }
+  });
+  $("clearBtn").addEventListener("click", () => {
+    const t = T(), prev = t.items.slice(), flags = { example: t.example, migrated: t.migrated, bufferConverted: t.bufferConverted };
+    t.items = []; editingId = null; changed(); refresh();
+    showUndo("List cleared.", () => { t.items = prev; Object.assign(t, flags); store.current = t.id; });
+  });
+
+  // ---- undo toast ----
+  let toastTimer = null, undoFn = null;
+  function showUndo(msg, fn) {
+    undoFn = fn; $("toastMsg").textContent = msg; $("toast").hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { $("toast").hidden = true; undoFn = null; }, 6000);
+  }
+  $("undoBtn").addEventListener("click", () => {
+    if (undoFn) { undoFn(); undoFn = null; editingId = null; save(); render(); }
+    $("toast").hidden = true; clearTimeout(toastTimer);
+  });
+
+  save();
+  render();
+})();
+</script>
+
+</body></html>
